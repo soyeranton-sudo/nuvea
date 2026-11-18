@@ -1,0 +1,4 @@
+.claude/
+graphify-out/
+node_modules/
+*.log
