@@ -217,7 +217,7 @@ Ne prends cependant pas de décisions importantes qui changent radicalement la v
 
 ## Notes techniques
 
-- **Nom provisoire : Nuvéa** (à confirmer).
+- **Pas de nom** : l'app s'appelle simplement « Dashboard » (décision du 2026-11-18). Ne pas lui donner de nom de marque.
 - **Stack :** HTML + CSS + JavaScript (modules ES) sans framework ni étape de build ; `supabase-js` chargé depuis jsDelivr, version figée. Site statique.
 - **Fichiers :** `js/nutrition.js` (calculs purs, testés), `js/db.js` (seul accès à Supabase), `js/app.js` (interface), `js/seed.js` (bibliothèque de départ, valeurs approximatives), `supabase/schema.sql` (tables + RLS), `css/styles.css` (variables clair/sombre).
 - **Historique :** une entrée copie les valeurs de l'aliment au moment où il est coché ; modifier un aliment ne met à jour que le jour affiché, les jours passés restent intacts.
@@ -226,6 +226,10 @@ Ne prends cependant pas de décisions importantes qui changent radicalement la v
 - **En ligne :** https://soyeranton-sudo.github.io/nuvea/ — dépôt public GitHub `soyeranton-sudo/nuvea`, GitHub Pages depuis `main` (racine). Publier = `git push` sur `main`, en ligne en ~1 min.
 - **Icônes :** `icons/` (PNG, générées par `tools/make_icons.py`).
 - **Pas encore fait :** upload d'images, graphiques/historique, poids, suggestions, mode hors connexion.
+- **Style (2026-11-18) :** Liquid Glass, fond d'écran chaud en dégradés (remplaçable plus tard par une photo), verre clair (texte blanc) pour barre/dock/bilan/onglets, verre laiteux pour cartes et feuilles, accents bleu `--blue` et cyan `--cyan`, icônes SVG au trait. Audit Impeccable propre, sauf le dégradé du fond (voulu).
+- **Skills du projet** (`.claude/skills/`, non versionnés) : rôles, priorités et réinstallation ci-dessous.
+
+@.claude/design-team.md
 
 ## 9. Règle fondamentale
 

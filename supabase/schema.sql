@@ -1,4 +1,4 @@
--- Nuvéa — schéma de base. À coller une seule fois dans Supabase > SQL Editor > Run.
+-- Dashboard — schéma de base. À coller une seule fois dans Supabase > SQL Editor > Run.
 -- Chaque table est protégée par Row Level Security : un compte ne voit que ses propres lignes.
 
 -- Aliments et recettes de la bibliothèque. Valeurs nutritionnelles pour UNE portion.

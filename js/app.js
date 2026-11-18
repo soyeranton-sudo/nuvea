@@ -94,13 +94,19 @@ function renderDay() {
   $('#next-day').disabled = state.day >= today;
 }
 
+const icon = (name) => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
+const fmt = (n) => round(n).toLocaleString('fr-FR');
+
 function ring(value, goal) {
-  const r = 52, c = 2 * Math.PI * r;
+  const r = 54, c = 2 * Math.PI * r;
   const p = progress(value, goal);
   return `
-    <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
-      <circle cx="60" cy="60" r="${r}" class="ring-track"/>
-      <circle cx="60" cy="60" r="${r}" class="ring-fill" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p)}"/>
+    <svg class="ring" viewBox="0 0 128 128" aria-hidden="true">
+      <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" style="stop-color:var(--cyan)"/><stop offset="1" style="stop-color:var(--blue)"/>
+      </linearGradient></defs>
+      <circle cx="64" cy="64" r="${r}" class="ring-track"/>
+      <circle cx="64" cy="64" r="${r}" class="ring-fill" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p)}"/>
     </svg>`;
 }
 
@@ -108,32 +114,34 @@ function renderSummary() {
   const t = total(state.entries);
   const g = state.goals;
   const left = round(g.kcal - t.kcal);
-  const bars = [
-    ['protein', 'Protéines'],
-    ['carbs', 'Glucides'],
-    ['fat', 'Lipides'],
-  ].map(([k, label]) => `
+  const macros = [['protein', 'Protéines'], ['carbs', 'Glucides'], ['fat', 'Lipides']].map(([k, label]) => `
     <div class="macro macro-${k}">
       <div class="macro-head"><span>${label}</span><span><strong>${round(t[k])}</strong> / ${round(g[k])} g</span></div>
-      <div class="bar"><i style="width:${progress(t[k], g[k]) * 100}%"></i></div>
+      <div class="bar"><i style="transform:scaleX(${progress(t[k], g[k])})"></i></div>
     </div>`).join('');
 
+  // Répartition par repas : hauteur relative au plus gros repas (au moins un tiers de l'objectif comme échelle).
   const byMeal = totalByMeal(state.entries);
-  const split = MEALS.filter((m) => byMeal[m.id].kcal > 0)
-    .map((m) => `<span class="chip-sm">${m.emoji} ${round(byMeal[m.id].kcal)}</span>`).join('');
+  const scale = Math.max(g.kcal / 3, ...MEALS.map((m) => byMeal[m.id].kcal));
+  const chart = MEALS.map((m) => `
+    <div class="col ${m.id === state.meal ? 'current' : ''}" title="${m.label} : ${fmt(byMeal[m.id].kcal)} kcal">
+      <span class="col-value">${byMeal[m.id].kcal ? fmt(byMeal[m.id].kcal) : ''}</span>
+      <div class="col-track"><i style="transform:scaleY(${Math.min(byMeal[m.id].kcal / scale, 1)})"></i></div>
+      ${icon(m.id)}
+    </div>`).join('');
 
   $('#summary').innerHTML = `
-    <div class="kcal">
-      ${ring(t.kcal, g.kcal)}
-      <div class="kcal-text">
-        <strong>${round(t.kcal)}</strong>
-        <span>/ ${round(g.kcal)} kcal</span>
+    <h1 class="summary-title">Bilan du jour</h1>
+    <div class="summary-body">
+      <div class="kcal">
+        ${ring(t.kcal, g.kcal)}
+        <div class="kcal-text"><strong>${fmt(t.kcal)}</strong><span>sur ${fmt(g.kcal)} kcal</span></div>
       </div>
-    </div>
-    <div class="macros">
-      <p class="remaining">${left >= 0 ? `Encore <strong>${left} kcal</strong> disponibles` : `<strong>${-left} kcal</strong> au-dessus de l'objectif`}</p>
-      ${bars}
-      ${split ? `<div class="split">${split}</div>` : ''}
+      <div class="macros">
+        <p class="remaining">${left >= 0 ? `Encore <strong>${fmt(left)} kcal</strong> pour aujourd'hui` : `<strong>${fmt(-left)} kcal</strong> au-delà de l'objectif`}</p>
+        ${macros}
+      </div>
+      <div class="chart" aria-label="Calories par repas">${chart}</div>
     </div>`;
 }
 
@@ -141,9 +149,9 @@ function renderTabs() {
   const byMeal = totalByMeal(state.entries);
   $('#meal-tabs').innerHTML = MEALS.map((m) => `
     <button role="tab" class="tab ${m.id === state.meal ? 'active' : ''}" data-meal="${m.id}" aria-selected="${m.id === state.meal}">
-      <span class="tab-emoji">${m.emoji}</span>
+      ${icon(m.id)}
       <span class="tab-label">${m.label}</span>
-      ${byMeal[m.id].kcal > 0 ? `<span class="tab-kcal">${round(byMeal[m.id].kcal)}</span>` : ''}
+      ${byMeal[m.id].kcal > 0 ? `<span class="tab-kcal">${fmt(byMeal[m.id].kcal)}</span>` : ''}
     </button>`).join('');
 }
 
@@ -153,21 +161,21 @@ function card({ key, emoji, image, name, portion, kcal, protein, entry, missing 
   const q = entry ? Number(entry.quantity) : 0;
   const shown = entry ? q : 1;
   return `
-    <article class="card glass ${entry ? 'selected' : ''}" data-key="${esc(key)}" tabindex="0" role="checkbox" aria-checked="${!!entry}">
+    <article class="card milk-glass ${entry ? 'selected' : ''}" data-key="${esc(key)}" tabindex="0" role="checkbox" aria-checked="${!!entry}">
       <div class="card-media">${image ? `<img src="${esc(image)}" alt="" loading="lazy">` : `<span>${esc(emoji || '🍽️')}</span>`}</div>
-      <span class="check" aria-hidden="true">✓</span>
+      <span class="check">${icon('check')}</span>
       <div class="card-body">
         <h3>${esc(name)}</h3>
-        <p class="muted">${esc(portion)}${missing ? ' · retiré de la bibliothèque' : ''}</p>
-        <p class="card-macros"><strong>${round(kcal * shown)}</strong> kcal · ${round1(protein * shown)} g prot.</p>
+        <p class="muted">${esc(portion)}${missing ? ', retiré de la bibliothèque' : ''}</p>
+        <p class="card-macros"><strong>${round(kcal * shown)}</strong> kcal <span>${round1(protein * shown)} g de protéines</span></p>
       </div>
       ${entry ? `
         <div class="stepper" data-entry="${entry.id}">
-          <button data-step="-0.5" aria-label="Moins" ${q <= 0.5 ? 'disabled' : ''}>−</button>
+          <button data-step="-0.5" aria-label="Moins" ${q <= 0.5 ? 'disabled' : ''}>${icon('minus')}</button>
           <span>${fmtQty(q)} portion${q > 1 ? 's' : ''}</span>
-          <button data-step="0.5" aria-label="Plus">+</button>
+          <button data-step="0.5" aria-label="Plus">${icon('plus')}</button>
         </div>` : ''}
-      ${!missing ? `<button class="edit-btn" data-edit="${esc(key)}" aria-label="Modifier">✎</button>` : ''}
+      ${!missing ? `<button class="edit-btn" data-edit="${esc(key)}" aria-label="Modifier ${esc(name)}">${icon('edit')}</button>` : ''}
     </article>`;
 }
 
@@ -189,14 +197,14 @@ function renderGrid() {
   }
 
   const empty = !state.items.length ? `
-    <div class="empty glass">
+    <div class="empty milk-glass">
       <p>Ta bibliothèque est vide.</p>
       <button class="btn primary" id="seed-btn">Ajouter les aliments de base</button>
       <p class="muted">${SEED_ITEMS.length} aliments et recettes courants, modifiables ensuite.</p>
     </div>` : '';
 
   $('#grid').innerHTML = empty + cards.join('') + `
-    <button class="card add-card" id="add-here"><span>＋</span>Ajouter un aliment</button>`;
+    <button class="add-card" id="add-here">${icon('plus')}Ajouter un aliment</button>`;
 }
 
 // ---------- Actions : cocher, quantités
@@ -253,8 +261,7 @@ $('#meal-tabs').addEventListener('click', (ev) => {
   const t = ev.target.closest('[data-meal]');
   if (!t) return;
   state.meal = t.dataset.meal;
-  renderTabs();
-  renderGrid();
+  render();
 });
 
 async function changeDay(iso) {
@@ -280,7 +287,7 @@ const itemForm = $('#item-form');
 let editing = null;
 
 $('#meal-checks').innerHTML = MEALS.map((m) =>
-  `<label class="chip"><input type="checkbox" name="meals" value="${m.id}"><span>${m.emoji} ${m.label}</span></label>`).join('');
+  `<label class="chip"><input type="checkbox" name="meals" value="${m.id}"><span>${m.label}</span></label>`).join('');
 
 const parseIngredients = (text) => text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
   const i = l.indexOf(':');
@@ -347,13 +354,13 @@ $('#delete-item').addEventListener('click', async () => {
 // ---------- Bibliothèque
 const libraryDialog = $('#library-dialog');
 function renderLibrary() {
-  const label = Object.fromEntries(MEALS.map((m) => [m.id, m.emoji]));
+  const known = new Set(MEALS.map((m) => m.id));
   $('#library-list').innerHTML = state.items.length ? state.items.map((i) => `
     <button class="lib-row" data-id="${i.id}">
       <span class="lib-emoji">${esc(i.emoji || '🍽️')}</span>
       <span class="lib-main"><strong>${i.favorite ? '★ ' : ''}${esc(i.name)}</strong>
         <span class="muted">${esc(i.portion)} · ${round(i.kcal)} kcal · P ${round1(i.protein)} · G ${round1(i.carbs)} · L ${round1(i.fat)}</span></span>
-      <span class="lib-meals">${i.meals.map((m) => label[m] || '').join('')}</span>
+      <span class="lib-meals">${i.meals.filter((m) => known.has(m)).map(icon).join("")}</span>
     </button>`).join('') : '<p class="muted center">Aucun élément pour l’instant.</p>';
 }
 $('#open-library').addEventListener('click', () => { renderLibrary(); libraryDialog.showModal(); });
@@ -362,6 +369,7 @@ $('#library-list').addEventListener('click', (ev) => {
   if (row) openItem(state.items.find((i) => i.id === row.dataset.id));
 });
 $('#new-item').addEventListener('click', () => openItem(null, state.meal));
+$('#dock-add').addEventListener('click', () => openItem(null, state.meal));
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
 
 // ---------- Objectifs, export, déconnexion
@@ -386,7 +394,7 @@ $('#export-btn').addEventListener('click', async () => {
   try {
     const data = await db.exportAll();
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: `nuvea-sauvegarde-${isoDay(new Date())}.json` });
+    const a = Object.assign(document.createElement('a'), { href: url, download: `dashboard-sauvegarde-${isoDay(new Date())}.json` });
     a.click();
     URL.revokeObjectURL(url);
   } catch (err) { fail(err); }

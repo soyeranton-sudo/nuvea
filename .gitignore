@@ -1,4 +1,5 @@
-.claude/
+.claude/*
+!.claude/design-team.md
 graphify-out/
 node_modules/
 *.log
