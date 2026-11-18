@@ -223,7 +223,9 @@ Ne prends cependant pas de décisions importantes qui changent radicalement la v
 - **Historique :** une entrée copie les valeurs de l'aliment au moment où il est coché ; modifier un aliment ne met à jour que le jour affiché, les jours passés restent intacts.
 - **Tests :** `node --test tests/`.
 - **Lancer en local :** `python -m http.server 5198` puis http://localhost:5198 (config `.claude/launch.json`).
-- **Pas encore fait :** hébergement en ligne, icône PNG pour l'écran d'accueil iPhone, upload d'images, graphiques/historique, poids, suggestions.
+- **En ligne :** https://soyeranton-sudo.github.io/nuvea/ — dépôt public GitHub `soyeranton-sudo/nuvea`, GitHub Pages depuis `main` (racine). Publier = `git push` sur `main`, en ligne en ~1 min.
+- **Icônes :** `icons/` (PNG, générées par `tools/make_icons.py`).
+- **Pas encore fait :** upload d'images, graphiques/historique, poids, suggestions, mode hors connexion.
 
 ## 9. Règle fondamentale
 
