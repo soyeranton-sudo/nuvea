@@ -10,6 +10,7 @@ create table if not exists public.items (
   emoji       text,
   image_url   text,
   description text,
+  recipe      text,                                  -- étapes de préparation, une par ligne
   ingredients jsonb not null default '[]'::jsonb,   -- [{ "name": "Avoine", "qty": "40 g" }]
   portion     text not null default '1 portion',    -- ce que représente une portion : "1 bol", "100 g"...
   kcal        numeric not null default 0 check (kcal >= 0),

@@ -225,6 +225,7 @@ Ne prends cependant pas de décisions importantes qui changent radicalement la v
 - **Lancer en local :** `python -m http.server 5198` puis http://localhost:5198 (config `.claude/launch.json`).
 - **En ligne :** https://soyeranton-sudo.github.io/nuvea/ — dépôt public GitHub `soyeranton-sudo/nuvea`, GitHub Pages depuis `main` (racine). Publier = `git push` sur `main`, en ligne en ~1 min.
 - **Icônes :** `icons/` (PNG, générées par `tools/make_icons.py`).
+- **Recettes :** source `docs/recettes-semaine.md` → `js/seed.js` (bibliothèque de départ) → migration `supabase/2026-11-18-recettes.sql` (générée depuis `seed.js`). Champ `recipe` (une étape par ligne) : bouton « Voir la recette » sur la carte si rempli.
 - **Pas encore fait :** upload d'images, graphiques/historique, poids, suggestions, mode hors connexion.
 - **Style (2026-11-18) :** Liquid Glass, fond d'écran chaud en dégradés (remplaçable plus tard par une photo), verre clair (texte blanc) pour barre/dock/bilan/onglets, verre laiteux pour cartes et feuilles, accents bleu `--blue` et cyan `--cyan`, icônes SVG au trait. Audit Impeccable propre, sauf le dégradé du fond (voulu).
 - **Skills du projet** (`.claude/skills/`, non versionnés) : rôles, priorités et réinstallation ci-dessous.

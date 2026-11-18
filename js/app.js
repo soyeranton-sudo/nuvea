@@ -1,7 +1,10 @@
 // Interface : état local + rendu. Les calculs sont dans nutrition.js, l'accès aux données dans db.js.
 import * as db from './db.js';
-import { MEALS, total, totalByMeal, progress, round, round1, isoDay, addDays } from './nutrition.js';
+import { MEALS, total, totalByMeal, progress, round, round1, isoDay, addDays, parseSteps } from './nutrition.js';
 import { SEED_ITEMS } from './seed.js';
+import { tween, initGlass } from './motion.js';
+
+initGlass();
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -12,6 +15,8 @@ const state = {
   items: [],
   entries: [],
   goals: { ...db.DEFAULT_GOALS },
+  animateGrid: true, // cartes qui entrent en cascade : au chargement et au changement de repas ou de jour
+  popKey: null,      // carte qui vient d'être cochée
 };
 
 function mealForNow() {
@@ -97,77 +102,121 @@ function renderDay() {
 const icon = (name) => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const fmt = (n) => round(n).toLocaleString('fr-FR');
 
-function ring(value, goal) {
-  const r = 54, c = 2 * Math.PI * r;
-  const p = progress(value, goal);
-  return `
-    <svg class="ring" viewBox="0 0 128 128" aria-hidden="true">
-      <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" style="stop-color:var(--cyan)"/><stop offset="1" style="stop-color:var(--blue)"/>
-      </linearGradient></defs>
-      <circle cx="64" cy="64" r="${r}" class="ring-track"/>
-      <circle cx="64" cy="64" r="${r}" class="ring-fill" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p)}"/>
-    </svg>`;
-}
+const R = 54, C = 2 * Math.PI * R;
+const MACRO_LABELS = [['protein', 'Protéines'], ['carbs', 'Glucides'], ['fat', 'Lipides']];
 
-function renderSummary() {
-  const t = total(state.entries);
-  const g = state.goals;
-  const left = round(g.kcal - t.kcal);
-  const macros = [['protein', 'Protéines'], ['carbs', 'Glucides'], ['fat', 'Lipides']].map(([k, label]) => `
-    <div class="macro macro-${k}">
-      <div class="macro-head"><span>${label}</span><span><strong>${round(t[k])}</strong> / ${round(g[k])} g</span></div>
-      <div class="bar"><i style="transform:scaleX(${progress(t[k], g[k])})"></i></div>
-    </div>`).join('');
-
-  // Répartition par repas : hauteur relative au plus gros repas (au moins un tiers de l'objectif comme échelle).
-  const byMeal = totalByMeal(state.entries);
-  const scale = Math.max(g.kcal / 3, ...MEALS.map((m) => byMeal[m.id].kcal));
-  const chart = MEALS.map((m) => `
-    <div class="col ${m.id === state.meal ? 'current' : ''}" title="${m.label} : ${fmt(byMeal[m.id].kcal)} kcal">
-      <span class="col-value">${byMeal[m.id].kcal ? fmt(byMeal[m.id].kcal) : ''}</span>
-      <div class="col-track"><i style="transform:scaleY(${Math.min(byMeal[m.id].kcal / scale, 1)})"></i></div>
-      ${icon(m.id)}
-    </div>`).join('');
-
+function buildSummary() {
   $('#summary').innerHTML = `
     <h1 class="summary-title">Bilan du jour</h1>
     <div class="summary-body">
       <div class="kcal">
-        ${ring(t.kcal, g.kcal)}
-        <div class="kcal-text"><strong>${fmt(t.kcal)}</strong><span>sur ${fmt(g.kcal)} kcal</span></div>
+        <svg class="ring" viewBox="0 0 128 128" aria-hidden="true">
+          <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" style="stop-color:var(--cyan)"/><stop offset="1" style="stop-color:var(--blue)"/>
+          </linearGradient></defs>
+          <circle cx="64" cy="64" r="${R}" class="ring-track"/>
+          <circle cx="64" cy="64" r="${R}" class="ring-fill" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
+        </svg>
+        <div class="kcal-text"><strong data-kcal>0</strong><span data-goal></span></div>
       </div>
       <div class="macros">
-        <p class="remaining">${left >= 0 ? `Encore <strong>${fmt(left)} kcal</strong> pour aujourd'hui` : `<strong>${fmt(-left)} kcal</strong> au-delà de l'objectif`}</p>
-        ${macros}
+        <p class="remaining" data-remaining></p>
+        ${MACRO_LABELS.map(([k, label]) => `
+          <div class="macro macro-${k}">
+            <div class="macro-head"><span>${label}</span><span><strong data-v="${k}">0</strong> / <span data-g="${k}"></span> g</span></div>
+            <div class="bar"><i data-bar="${k}"></i></div>
+          </div>`).join('')}
       </div>
-      <div class="chart" aria-label="Calories par repas">${chart}</div>
+      <div class="chart" aria-label="Calories par repas">
+        ${MEALS.map((m) => `<div class="col" data-col="${m.id}"><span class="col-value"></span><div class="col-track"><i></i></div>${icon(m.id)}</div>`).join('')}
+      </div>
     </div>`;
+  $('#summary').getBoundingClientRect(); // fige l'état vide : la première mise à jour s'anime depuis zéro
+}
+
+function renderSummary() {
+  if (!$('#summary .kcal')) buildSummary();
+  const t = total(state.entries);
+  const g = state.goals;
+  const left = g.kcal - t.kcal;
+
+  $('.ring-fill').style.strokeDashoffset = C * (1 - progress(t.kcal, g.kcal));
+  tween($('[data-kcal]'), t.kcal, fmt);
+  $('[data-goal]').textContent = `sur ${fmt(g.kcal)} kcal`;
+
+  const rem = $('[data-remaining]');
+  const over = String(left < 0);
+  if (rem.dataset.over !== over) {
+    rem.dataset.over = over;
+    rem.innerHTML = left < 0 ? "<strong></strong> au-delà de l'objectif" : "Encore <strong></strong> pour aujourd'hui";
+  }
+  tween(rem.querySelector('strong'), Math.abs(left), (v) => `${fmt(v)} kcal`);
+
+  for (const [k] of MACRO_LABELS) {
+    tween($(`[data-v="${k}"]`), t[k], round);
+    $(`[data-g="${k}"]`).textContent = round(g[k]);
+    $(`[data-bar="${k}"]`).style.transform = `scaleX(${progress(t[k], g[k])})`;
+  }
+
+  // Répartition par repas : hauteur relative au plus gros repas (au moins un tiers de l'objectif comme échelle).
+  const byMeal = totalByMeal(state.entries);
+  const scale = Math.max(g.kcal / 3, ...MEALS.map((m) => byMeal[m.id].kcal));
+  for (const m of MEALS) {
+    const col = $(`[data-col="${m.id}"]`);
+    const k = byMeal[m.id].kcal;
+    col.classList.toggle('current', m.id === state.meal);
+    col.title = `${m.label} : ${fmt(k)} kcal`;
+    col.querySelector('.col-value').textContent = k ? fmt(k) : '';
+    col.querySelector('i').style.transform = `scaleY(${Math.min(k / scale, 1)})`;
+  }
 }
 
 function renderTabs() {
+  const box = $('#meal-tabs');
+  if (!box.querySelector('.tab')) {
+    box.innerHTML = '<span class="tab-indicator" aria-hidden="true"></span>' + MEALS.map((m) => `
+      <button role="tab" class="tab" data-meal="${m.id}">${icon(m.id)}<span class="tab-label">${m.label}</span><span class="tab-kcal"></span></button>`).join('');
+    new ResizeObserver(moveIndicator).observe(box);
+  }
   const byMeal = totalByMeal(state.entries);
-  $('#meal-tabs').innerHTML = MEALS.map((m) => `
-    <button role="tab" class="tab ${m.id === state.meal ? 'active' : ''}" data-meal="${m.id}" aria-selected="${m.id === state.meal}">
-      ${icon(m.id)}
-      <span class="tab-label">${m.label}</span>
-      ${byMeal[m.id].kcal > 0 ? `<span class="tab-kcal">${fmt(byMeal[m.id].kcal)}</span>` : ''}
-    </button>`).join('');
+  for (const b of box.querySelectorAll('.tab')) {
+    const on = b.dataset.meal === state.meal;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on);
+    const k = byMeal[b.dataset.meal].kcal;
+    b.querySelector('.tab-kcal').textContent = k ? fmt(k) : '';
+  }
+  moveIndicator();
+}
+
+// La pastille blanche glisse sous l'onglet actif.
+function moveIndicator() {
+  const box = $('#meal-tabs');
+  const a = box.querySelector('.tab.active');
+  if (!a) return;
+  const ind = box.querySelector('.tab-indicator');
+  ind.style.width = `${a.offsetWidth}px`;
+  ind.style.transform = `translateX(${a.offsetLeft}px)`;
+  // Sur iPhone la barre défile : on garde l'onglet actif au centre.
+  box.scrollTo({ left: a.offsetLeft - (box.clientWidth - a.offsetWidth) / 2, behavior: 'smooth' });
 }
 
 const fmtQty = (q) => (q === 0.5 ? '½' : String(q).replace('.5', '½').replace('.', ','));
 
-function card({ key, emoji, image, name, portion, kcal, protein, entry, missing }) {
+function card({ key, emoji, image, name, portion, kcal, protein, entry, missing, recipe }) {
   const q = entry ? Number(entry.quantity) : 0;
   const shown = entry ? q : 1;
   return `
     <article class="card milk-glass ${entry ? 'selected' : ''}" data-key="${esc(key)}" tabindex="0" role="checkbox" aria-checked="${!!entry}">
-      <div class="card-media">${image ? `<img src="${esc(image)}" alt="" loading="lazy">` : `<span>${esc(emoji || '🍽️')}</span>`}</div>
+      <div class="card-media">
+        ${image ? `<img src="${esc(image)}" alt="" loading="lazy">` : `<span>${esc(emoji || '🍽️')}</span>`}
+        ${recipe ? `<button class="recipe-btn" data-recipe="${esc(key)}">Voir la recette</button>` : ''}
+      </div>
       <span class="check">${icon('check')}</span>
       <div class="card-body">
         <h3>${esc(name)}</h3>
         <p class="muted">${esc(portion)}${missing ? ', retiré de la bibliothèque' : ''}</p>
-        <p class="card-macros"><strong>${round(kcal * shown)}</strong> kcal <span>${round1(protein * shown)} g de protéines</span></p>
+        <p class="card-macros"><span><strong>${round(kcal * shown)}</strong> kcal</span><span>${round1(protein * shown)} g prot.</span></p>
       </div>
       ${entry ? `
         <div class="stepper" data-entry="${entry.id}">
@@ -189,7 +238,7 @@ function renderGrid() {
     const entry = byItem.get(i.id);
     const v = entry || i; // coché : on affiche les valeurs enregistrées, les mêmes que le bilan
     return card({ key: i.id, emoji: i.emoji, image: i.image_url, name: v.name, portion: v.portion,
-      kcal: v.kcal, protein: v.protein, entry });
+      kcal: v.kcal, protein: v.protein, entry, recipe: !!i.recipe?.trim() });
   });
   // Entrées dont l'aliment a été supprimé : on les montre quand même pour un historique exact.
   for (const e of mealEntries.filter((x) => !x.item_id || !state.items.some((i) => i.id === x.item_id))) {
@@ -199,12 +248,21 @@ function renderGrid() {
   const empty = !state.items.length ? `
     <div class="empty milk-glass">
       <p>Ta bibliothèque est vide.</p>
-      <button class="btn primary" id="seed-btn">Ajouter les aliments de base</button>
-      <p class="muted">${SEED_ITEMS.length} aliments et recettes courants, modifiables ensuite.</p>
+      <button class="btn primary" id="seed-btn">Ajouter mes recettes</button>
+      <p class="muted">${SEED_ITEMS.length} recettes de ta semaine, modifiables ensuite.</p>
     </div>` : '';
 
-  $('#grid').innerHTML = empty + cards.join('') + `
+  const grid = $('#grid');
+  grid.innerHTML = empty + cards.join('') + `
     <button class="add-card" id="add-here">${icon('plus')}Ajouter un aliment</button>`;
+  if (state.animateGrid) {
+    grid.querySelectorAll('.card, .add-card').forEach((el, i) => { el.style.setProperty('--i', i); el.classList.add('enter'); });
+    state.animateGrid = false;
+  }
+  if (state.popKey) {
+    grid.querySelector(`[data-key="${CSS.escape(state.popKey)}"]`)?.classList.add('pop');
+    state.popKey = null;
+  }
 }
 
 // ---------- Actions : cocher, quantités
@@ -219,6 +277,7 @@ async function toggle(key) {
   try {
     const entry = await db.addEntry(state.day, state.meal, item);
     state.entries.push(entry);
+    state.popKey = key;
     render();
   } catch (err) { fail(err); } finally { pending.delete(key); }
 }
@@ -243,6 +302,8 @@ $('#grid').addEventListener('click', (ev) => {
   const stepBtn = ev.target.closest('[data-step]');
   if (stepBtn) return step(stepBtn.closest('.stepper').dataset.entry, Number(stepBtn.dataset.step));
   if (ev.target.closest('.stepper')) return;
+  const rb = ev.target.closest('[data-recipe]');
+  if (rb) return openRecipe(state.items.find((i) => i.id === rb.dataset.recipe));
   const edit = ev.target.closest('[data-edit]');
   if (edit) return openItem(state.items.find((i) => i.id === edit.dataset.edit));
   if (ev.target.closest('#add-here')) return openItem(null, state.meal);
@@ -260,12 +321,15 @@ $('#grid').addEventListener('keydown', (ev) => {
 $('#meal-tabs').addEventListener('click', (ev) => {
   const t = ev.target.closest('[data-meal]');
   if (!t) return;
+  if (t.dataset.meal === state.meal) return;
   state.meal = t.dataset.meal;
+  state.animateGrid = true;
   render();
 });
 
 async function changeDay(iso) {
   state.day = iso;
+  state.animateGrid = true;
   try { await loadDay(); } catch (err) { fail(err); }
 }
 $('#prev-day').addEventListener('click', () => changeDay(addDays(state.day, -1)));
@@ -277,7 +341,7 @@ async function seed() {
     await db.insertItems(SEED_ITEMS);
     state.items = await db.listItems();
     render();
-    toast('Bibliothèque prête ✨');
+    toast('Recettes ajoutées');
   } catch (err) { fail(err); }
 }
 
@@ -301,7 +365,7 @@ function openItem(item, meal) {
   $('#item-title').textContent = item ? 'Modifier' : 'Nouvel aliment';
   $('#delete-item').hidden = !item;
   const v = item || { kind: 'food', portion: '1 portion', meals: meal ? [meal] : [] };
-  for (const k of ['name', 'emoji', 'portion', 'kcal', 'protein', 'carbs', 'fat', 'description', 'image_url']) {
+  for (const k of ['name', 'emoji', 'portion', 'kcal', 'protein', 'carbs', 'fat', 'description', 'recipe', 'image_url']) {
     itemForm.elements[k].value = v[k] ?? '';
   }
   itemForm.elements.kind.value = v.kind;
@@ -326,6 +390,7 @@ itemDialog.addEventListener('close', async () => {
     meals,
     ingredients: parseIngredients(f.ingredients.value),
     description: f.description.value.trim() || null,
+    recipe: f.recipe.value.trim() || null,
     image_url: f.image_url.value.trim() || null,
     favorite: f.favorite.checked,
   };
@@ -351,6 +416,32 @@ $('#delete-item').addEventListener('click', async () => {
   } catch (err) { fail(err); }
 });
 
+// ---------- Fiche recette
+const recipeDialog = $('#recipe-dialog');
+
+function openRecipe(item) {
+  if (!item) return;
+  $('#recipe-title').textContent = item.name;
+  const stats = [[item.kcal, 'kcal'], [item.protein, 'g prot.'], [item.carbs, 'g gluc.'], [item.fat, 'g lip.']];
+  const ing = item.ingredients || [];
+  $('#recipe-body').innerHTML = `
+    <div class="recipe-hero">${item.image_url ? `<img src="${esc(item.image_url)}" alt="">` : `<span>${esc(item.emoji || '🍽️')}</span>`}</div>
+    <p class="recipe-portion">Pour ${esc(item.portion)}</p>
+    <div class="recipe-stats">${stats.map(([v, l]) => `<div><strong>${round1(v)}</strong><span>${l}</span></div>`).join('')}</div>
+    ${item.description ? `<p class="recipe-note">${esc(item.description)}</p>` : ''}
+    ${ing.length ? `<h3>Ingrédients</h3><ul class="recipe-ing">${ing.map((x) => `<li><span>${esc(x.name)}</span><span>${esc(x.qty)}</span></li>`).join('')}</ul>` : ''}
+    <h3>Préparation</h3>
+    <ol class="recipe-steps">${parseSteps(item.recipe).map((st) => `<li>${esc(st)}</li>`).join('')}</ol>
+    <button class="btn wide" data-edit-recipe="${item.id}">${icon('edit')}Modifier la recette</button>`;
+  recipeDialog.showModal();
+}
+$('#recipe-body').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-edit-recipe]');
+  if (!b) return;
+  recipeDialog.close();
+  openItem(state.items.find((i) => i.id === b.dataset.editRecipe));
+});
+
 // ---------- Bibliothèque
 const libraryDialog = $('#library-dialog');
 function renderLibrary() {
@@ -359,7 +450,7 @@ function renderLibrary() {
     <button class="lib-row" data-id="${i.id}">
       <span class="lib-emoji">${esc(i.emoji || '🍽️')}</span>
       <span class="lib-main"><strong>${i.favorite ? '★ ' : ''}${esc(i.name)}</strong>
-        <span class="muted">${esc(i.portion)} · ${round(i.kcal)} kcal · P ${round1(i.protein)} · G ${round1(i.carbs)} · L ${round1(i.fat)}</span></span>
+        <span class="lib-meta"><span>${esc(i.portion)}</span><span>${round(i.kcal)} kcal</span><span>${round1(i.protein)} g prot.</span></span></span>
       <span class="lib-meals">${i.meals.filter((m) => known.has(m)).map(icon).join("")}</span>
     </button>`).join('') : '<p class="muted center">Aucun élément pour l’instant.</p>';
 }

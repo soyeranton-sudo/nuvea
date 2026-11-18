@@ -13,6 +13,10 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- Police douce : SF Pro Rounded sur les appareils Apple, Nunito ailleurs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400..800&display=swap">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -103,6 +107,8 @@
       </fieldset>
       <label>Ingrédients <span class="muted">(un par ligne : « Avoine : 40 g »)</span>
         <textarea name="ingredients" rows="3"></textarea></label>
+      <label>Recette <span class="muted">(une étape par ligne, tu peux coller une recette)</span>
+        <textarea name="recipe" rows="5" placeholder="Cuire les pâtes al dente.&#10;Faire revenir le poulet…"></textarea></label>
       <label>Description <span class="muted">(facultatif)</span><textarea name="description" rows="2"></textarea></label>
       <label>Image <span class="muted">(lien, facultatif)</span><input name="image_url" type="url" placeholder="https://…"></label>
       <label class="toggle"><input type="checkbox" name="favorite"> Favori</label>
@@ -111,6 +117,15 @@
         <button class="btn primary" value="save">Enregistrer</button>
       </footer>
     </form>
+  </dialog>
+
+  <!-- Recette -->
+  <dialog id="recipe-dialog" class="sheet recipe-sheet">
+    <header class="sheet-head">
+      <h2 id="recipe-title"></h2>
+      <button class="round-btn" data-close aria-label="Fermer"><svg><use href="#i-close"/></svg></button>
+    </header>
+    <div id="recipe-body"></div>
   </dialog>
 
   <!-- Bibliothèque -->

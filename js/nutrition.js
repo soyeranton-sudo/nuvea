@@ -60,3 +60,6 @@ export function addDays(iso, n) {
   const [y, m, d] = iso.split('-').map(Number);
   return isoDay(new Date(y, m - 1, d + n));
 }
+
+// Étapes d'une recette : une par ligne ; la numérotation ou les puces d'un texte collé sont retirées.
+export const parseSteps = (text) => (text || '').split('\n').map((l) => l.replace(/^\s*(\d+\s*[.)-]|[-•*])\s*/, '').trim()).filter(Boolean);

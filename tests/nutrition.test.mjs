@@ -1,7 +1,7 @@
 // Lancer : node --test tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scaled, total, totalByMeal, progress, isoDay, addDays } from '../js/nutrition.js';
+import { scaled, total, totalByMeal, progress, isoDay, addDays, parseSteps } from '../js/nutrition.js';
 
 const recipe = { meal: 'lunch', quantity: 1, kcal: 400, protein: 30, carbs: 40, fat: 12 };
 
@@ -34,4 +34,9 @@ test('dates locales et changement de mois', () => {
   assert.equal(isoDay(new Date(2026, 0, 5, 23, 30)), '2026-01-05');
   assert.equal(addDays('2026-02-28', 1), '2026-03-01');
   assert.equal(addDays('2026-03-01', -1), '2026-02-28');
+});
+
+test('parseSteps retire numéros et puces, ignore les lignes vides', () => {
+  assert.deepEqual(parseSteps('1. Cuire les pâtes\n\n2) Égoutter\n- Servir chaud\nGoûter'),['Cuire les pâtes', 'Égoutter', 'Servir chaud', 'Goûter']);
+  assert.deepEqual(parseSteps(null), []);
 });

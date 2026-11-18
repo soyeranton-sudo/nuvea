@@ -22,9 +22,10 @@ Pour une petite correction, n'invoque aucun skill : fais-la directement.
 | Serveurs MCP | `mcp-builder` | Uniquement si on crée une intégration MCP. |
 
 ## Règles tranchées
-- **Animations** (Emil) : `transform` et `opacity` uniquement, `ease-out` (`cubic-bezier(0.23, 1, 0.32, 1)`), 150–300 ms pour l'interface, jamais `transition: all`, toujours `prefers-reduced-motion`. Pas de GSAP ni de bibliothèque d'animation.
+- **Animations** (Emil) : `transform`, `scale`, `translate`, `opacity` uniquement. Interface : 110–420 ms, `--ease` ; relâchement d'un appui avec un léger rebond `--spring`. Données (anneau, barres, compteurs) : 700–1100 ms, `--ease-data`, mises à jour en place (ne pas recréer le bilan, sinon rien ne s'anime). Jamais `transition: all`, toujours `prefers-reduced-motion`. Pas de GSAP.
+- **Verre réactif** : `js/motion.js` place un reflet sous le pointeur (`--gx`/`--gy`) et un léger aimant sur `.dock-btn`/`.round-btn`. Pas d'ombres colorées (Impeccable les signale).
 - **Verre** : deux matières seulement. *Verre clair* (`.clear-glass`, texte blanc) pour ce qui flotte sur le fond : barre du haut, dock, bilan, onglets. *Verre laiteux* (`.milk-glass`, texte sombre) pour le contenu dense : cartes d'aliments, feuilles. Le texte doit rester lisible (contraste 4.5:1). Icônes d'interface : SVG au trait (sprite dans `index.html`), jamais d'emoji.
-- **Typographie** : la pile système Apple (`-apple-system`, SF Pro) est un choix d'identité voulu, pas un défaut à corriger.
+- **Typographie** (demande du 2026-11-18 : plus douce) : police arrondie `--font` = SF Pro Rounded (`ui-rounded`) sur Apple, Nunito ailleurs ; échelle `--fs-xs` à `--fs-xl`, titres en 700–800. Pas d'autre famille.
 - **Anneau de progression** : il porte une vraie donnée (calories / objectif), il est conservé.
 - **Couleurs et espacements** : passer par les variables CSS existantes ; toute nouvelle couleur devient une variable, en clair et en sombre.
 - **Points ouverts** (Impeccable a raison de les signaler, à décider avec l'utilisateur) : les emojis comme icônes d'aliments (temporaires, à remplacer par de vraies images) et le logo en texte dégradé.

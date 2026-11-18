@@ -26,7 +26,7 @@ export function onAuthChange(cb) {
 }
 
 // --- Bibliothèque
-const ITEM_FIELDS = ['name', 'kind', 'emoji', 'image_url', 'description', 'ingredients', 'portion',
+const ITEM_FIELDS = ['name', 'kind', 'emoji', 'image_url', 'description', 'recipe', 'ingredients', 'portion',
   'kcal', 'protein', 'carbs', 'fat', 'meals', 'favorite'];
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => k in obj).map((k) => [k, obj[k]]));
 
