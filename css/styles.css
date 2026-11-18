@@ -15,11 +15,11 @@
   --on-clear: #ffffff;
   --on-clear-soft: rgba(255, 255, 255, 0.76);
   --clear-track: rgba(255, 255, 255, 0.2);
-  --glint: rgba(255, 255, 255, 0.24); /* reflet qui suit le pointeur */
+  --glint: rgba(255, 255, 255, 0.12); /* reflet qui suit le pointeur */
 
   /* Verre laiteux */
   --milk: rgba(255, 255, 255, 0.6);
-  --milk-strong: rgba(250, 248, 245, 0.9);
+  --milk-strong: rgba(250, 248, 245, 0.96);
   --milk-edge: rgba(255, 255, 255, 0.7);
   --ink: #1d1d1f;
   --ink-soft: #6a6a70;
@@ -57,7 +57,7 @@
   :root:not([data-theme="light"]) {
     --wall-base: #3a3129; --wall-light: #7a644c; --wall-wood: #4a3524; --wall-leaf: #36412b; --wall-shade: #15110e;
     --clear-tint: rgba(16, 14, 12, 0.34); --clear-sheen: rgba(255, 255, 255, 0.08); --clear-edge: rgba(255, 255, 255, 0.16);
-    --glint: rgba(255, 255, 255, 0.14);
+    --glint: rgba(255, 255, 255, 0.07);
     --milk: rgba(40, 38, 36, 0.6); --milk-strong: rgba(34, 32, 30, 0.92); --milk-edge: rgba(255, 255, 255, 0.1);
     --ink: #f5f5f7; --ink-soft: #a6a6ab; --field: rgba(255, 255, 255, 0.08); --hairline: rgba(255, 255, 255, 0.1);
     --media: linear-gradient(150deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
@@ -68,7 +68,7 @@
 :root[data-theme="dark"] {
   --wall-base: #3a3129; --wall-light: #7a644c; --wall-wood: #4a3524; --wall-leaf: #36412b; --wall-shade: #15110e;
   --clear-tint: rgba(16, 14, 12, 0.34); --clear-sheen: rgba(255, 255, 255, 0.08); --clear-edge: rgba(255, 255, 255, 0.16);
-  --glint: rgba(255, 255, 255, 0.14);
+  --glint: rgba(255, 255, 255, 0.07);
   --milk: rgba(40, 38, 36, 0.6); --milk-strong: rgba(34, 32, 30, 0.92); --milk-edge: rgba(255, 255, 255, 0.1);
   --ink: #f5f5f7; --ink-soft: #a6a6ab; --field: rgba(255, 255, 255, 0.08); --hairline: rgba(255, 255, 255, 0.1);
   --media: linear-gradient(150deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04)); --blue: #4b5ff0; color-scheme: dark;
@@ -101,13 +101,13 @@ svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; s
 .wallpaper {
   position: fixed; inset: -10%; z-index: -1; pointer-events: none;
   background:
-    linear-gradient(100deg, transparent 18%, rgba(255, 236, 205, 0.22) 24%, transparent 31%, transparent 52%, rgba(255, 236, 205, 0.16) 58%, transparent 64%),
+    linear-gradient(100deg, transparent 12%, rgba(255, 236, 205, 0.2) 24%, transparent 36%, transparent 48%, rgba(255, 236, 205, 0.14) 58%, transparent 68%),
     radial-gradient(60% 50% at 12% 8%, var(--wall-light), transparent 70%),
     radial-gradient(45% 55% at 92% 30%, var(--wall-leaf), transparent 70%),
     radial-gradient(70% 45% at 40% 100%, var(--wall-wood), transparent 70%),
     radial-gradient(50% 50% at 100% 100%, var(--wall-shade), transparent 70%),
     var(--wall-base);
-  filter: blur(20px) saturate(110%);
+  transform: translateZ(0); /* calque à part, peint une seule fois */
 }
 .wallpaper::after { /* grain très léger pour éviter les bandes dans les dégradés */
   content: ""; position: absolute; inset: 0; opacity: 0.18; mix-blend-mode: overlay;
@@ -115,28 +115,25 @@ svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; s
 }
 
 /* ---------- Matières */
-.clear-glass, .milk-glass { position: relative; isolation: isolate; }
+.clear-glass, .milk-glass { position: relative; isolation: isolate; overflow: clip; }
 .clear-glass {
   background: linear-gradient(160deg, var(--clear-sheen), transparent 60%), var(--clear-tint);
-  -webkit-backdrop-filter: blur(36px) saturate(160%);
-  backdrop-filter: blur(36px) saturate(160%);
   border: 1px solid var(--clear-edge);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), var(--shadow);
   color: var(--on-clear);
 }
 .milk-glass {
   background: var(--milk);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--milk-edge);
   box-shadow: 0 12px 32px rgba(28, 18, 8, 0.16);
   color: var(--ink);
 }
 /* Le verre capte la lumière là où passe la souris ou le doigt (position mise à jour par js/motion.js). */
 .clear-glass::before, .milk-glass::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
-  background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, -40%), var(--glint), transparent 70%);
-  opacity: 0; transition: opacity 500ms var(--ease);
+  content: ""; position: absolute; left: -300px; top: -300px; width: 600px; height: 600px; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, var(--glint), transparent);
+  transform: translate3d(var(--gx, 0px), var(--gy, 0px), 0);
+  opacity: 0; transition: opacity 600ms var(--ease);
 }
 @media (hover: hover) { .clear-glass:hover::before, .milk-glass:hover::before { opacity: 1; } }
 .clear-glass:active::before, .milk-glass:active::before { opacity: 1; transition-duration: 120ms; }
@@ -197,6 +194,7 @@ textarea { resize: vertical; }
 }
 
 /* Barre du haut */
+.topbar, .dock { -webkit-backdrop-filter: blur(36px) saturate(160%); backdrop-filter: blur(36px) saturate(160%); }
 .topbar {
   position: sticky; top: calc(env(safe-area-inset-top) + 12px); z-index: 5;
   display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 999px;
@@ -274,6 +272,7 @@ textarea { resize: vertical; }
 }
 .meal-tabs::-webkit-scrollbar { display: none; }
 .tab-indicator {
+  will-change: transform, width;
   position: absolute; top: 5px; bottom: 5px; left: 0; width: 0; z-index: 0; border-radius: 999px;
   background: rgba(255, 255, 255, 0.95); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.14);
   transition: transform 480ms var(--spring), width 480ms var(--spring);
@@ -322,7 +321,7 @@ textarea { resize: vertical; }
 .recipe-btn {
   position: absolute; left: 0; right: 0; bottom: 10px; margin: 0 auto; width: fit-content;
   padding: 7px 14px; border-radius: 999px; font-size: var(--fs-sm); font-weight: 700; color: #fff;
-  background: rgba(24, 20, 16, 0.5); -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%);
+  background: rgba(24, 20, 16, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 @media (hover: hover) {
@@ -355,7 +354,7 @@ textarea { resize: vertical; }
 
 /* Entrées et confirmations des cartes */
 .enter { animation: card-in 520ms var(--ease) backwards; animation-delay: calc(var(--i, 0) * 30ms); }
-@keyframes card-in { from { opacity: 0; translate: 0 14px; scale: 0.97; } }
+@keyframes card-in { from { opacity: 0; translate: 0 14px; } }
 .pop .check { animation: check-pop 520ms var(--spring); }
 @keyframes check-pop { 0% { scale: 0.5; } 55% { scale: 1.2; } 100% { scale: 1; } }
 .pop { animation: card-glow 700ms var(--ease); }
@@ -367,7 +366,6 @@ textarea { resize: vertical; }
 .sheet {
   width: min(560px, calc(100% - 32px)); max-height: 90dvh; padding: 0 24px 24px; border: 1px solid var(--milk-edge);
   border-radius: var(--r-panel); background: var(--milk-strong); color: var(--ink); box-shadow: var(--shadow);
-  -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%);
   opacity: 0; translate: 0 20px; scale: 0.97;
   transition: opacity 260ms var(--ease), translate 420ms var(--ease), scale 420ms var(--ease),
     overlay 420ms allow-discrete, display 420ms allow-discrete;
@@ -375,11 +373,11 @@ textarea { resize: vertical; }
 .sheet[open] { opacity: 1; translate: 0 0; scale: 1; }
 @starting-style { .sheet[open] { opacity: 0; translate: 0 20px; scale: 0.97; } }
 .sheet::backdrop {
-  background: rgba(20, 14, 8, 0); -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0);
-  transition: background-color 320ms var(--ease), backdrop-filter 320ms var(--ease), overlay 420ms allow-discrete, display 420ms allow-discrete;
+  background: rgba(20, 14, 8, 0.28); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  opacity: 0; transition: opacity 320ms var(--ease), overlay 420ms allow-discrete, display 420ms allow-discrete;
 }
-.sheet[open]::backdrop { background: rgba(20, 14, 8, 0.28); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-@starting-style { .sheet[open]::backdrop { background: rgba(20, 14, 8, 0); backdrop-filter: blur(0); } }
+.sheet[open]::backdrop { opacity: 1; }
+@starting-style { .sheet[open]::backdrop { opacity: 0; } }
 .sheet form { display: grid; gap: 16px; }
 .sheet-head {
   position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
